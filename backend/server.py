@@ -10,7 +10,7 @@ from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime
 import base64
-import openai
+from openai import OpenAI
 import json
 
 ROOT_DIR = Path(__file__).parent
@@ -18,11 +18,11 @@ load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+mongo_client = AsyncIOMotorClient(mongo_url)
+db = mongo_client[os.environ['DB_NAME']]
 
 # OpenAI setup
-openai.api_key = os.environ['OPENAI_API_KEY']
+openai_client = OpenAI(api_key=os.environ['OPENAI_API_KEY'])
 
 # Create the main app without a prefix
 app = FastAPI()
@@ -118,6 +118,13 @@ class Match(BaseModel):
     notes: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 async def get_ai_insights(category: str, description: str, condition: str, weight: float = None):
     """Get AI insights for e-waste categorization and environmental impact"""
     try:
@@ -152,7 +159,7 @@ async def get_ai_insights(category: str, description: str, condition: str, weigh
         }}
         """
         
-        response = openai.ChatCompletion.create(
+        response = openai_client.chat.completions.create(
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": "You are an expert in e-waste management and environmental sustainability. Provide detailed, accurate insights about electronic waste disposal and recycling."},
@@ -337,12 +344,15 @@ async def get_dashboard_analytics():
     total_collectors = await db.collectors.count_documents({})
     total_matches = await db.matches.count_documents({})
     
-    # Calculate environmental impact
+    # Calculate environmental impact - Fixed the bug
     posts = await db.waste_posts.find({}).to_list(1000)
-    total_carbon_saved = sum([
-        post.get("environmental_impact", {}).get("carbon_footprint_kg", 0) 
-        for post in posts
-    ])
+    total_carbon_saved = 0
+    for post in posts:
+        env_impact = post.get("environmental_impact")
+        if env_impact and isinstance(env_impact, dict):
+            carbon_footprint = env_impact.get("carbon_footprint_kg", 0)
+            if isinstance(carbon_footprint, (int, float)):
+                total_carbon_saved += carbon_footprint
     
     return {
         "total_posts": total_posts,
@@ -367,13 +377,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
 @app.on_event("shutdown")
 async def shutdown_db_client():
-    client.close()
+    mongo_client.close()
