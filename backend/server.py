@@ -178,31 +178,71 @@ async def get_ai_insights(category: str, description: str, condition: str, weigh
             json_str = content[start:end]
             return json.loads(json_str)
         except:
-            # Fallback to simple parsing
-            return {
-                "environmental_impact": {
-                    "carbon_footprint_kg": 5.2,
-                    "rare_metals": ["copper", "gold", "silver"],
-                    "toxicity_level": "medium",
-                    "landfill_impact": "Can contaminate soil and groundwater"
-                },
-                "recycling_suggestions": [
-                    "Contact certified e-waste recycler",
-                    "Check for manufacturer take-back programs",
-                    "Donate if still functional"
-                ],
-                "market_value": {
-                    "estimated_price": 150.0,
-                    "value_factors": ["condition", "brand", "demand"]
-                },
-                "handling_tips": [
-                    "Remove all personal data",
-                    "Handle with care to avoid damage"
-                ]
-            }
+            # Fallback to simple parsing if JSON extraction fails
+            logger.warning("Failed to parse OpenAI JSON response, using fallback data")
+            return get_fallback_ai_insights(category, condition, weight)
+            
     except Exception as e:
         logger.error(f"AI insights error: {e}")
-        return None
+        # Return fallback data when OpenAI API fails
+        return get_fallback_ai_insights(category, condition, weight)
+
+def get_fallback_ai_insights(category: str, condition: str, weight: float = None):
+    """Generate fallback AI insights when OpenAI API is unavailable"""
+    # Category-specific insights
+    category_insights = {
+        "Smartphones & Tablets": {
+            "carbon_footprint_kg": 70.0,
+            "rare_metals": ["lithium", "cobalt", "gold", "silver", "copper"],
+            "estimated_price": 2500.0 if condition == "working" else 800.0
+        },
+        "Laptops & Computers": {
+            "carbon_footprint_kg": 300.0,
+            "rare_metals": ["gold", "silver", "copper", "palladium", "platinum"],
+            "estimated_price": 5000.0 if condition == "working" else 1500.0
+        },
+        "TVs & Monitors": {
+            "carbon_footprint_kg": 200.0,
+            "rare_metals": ["copper", "gold", "silver", "lead"],
+            "estimated_price": 3000.0 if condition == "working" else 1000.0
+        }
+    }
+    
+    # Get category-specific data or use defaults
+    cat_data = category_insights.get(category, {
+        "carbon_footprint_kg": 50.0,
+        "rare_metals": ["copper", "gold", "silver"],
+        "estimated_price": 1000.0 if condition == "working" else 300.0
+    })
+    
+    # Adjust price based on condition
+    price_multiplier = {"working": 1.0, "broken": 0.3, "parts_only": 0.1}.get(condition, 0.5)
+    estimated_price = cat_data["estimated_price"] * price_multiplier
+    
+    return {
+        "environmental_impact": {
+            "carbon_footprint_kg": cat_data["carbon_footprint_kg"],
+            "rare_metals": cat_data["rare_metals"],
+            "toxicity_level": "medium",
+            "landfill_impact": f"Improper disposal can contaminate soil and groundwater with toxic materials from {category.lower()}"
+        },
+        "recycling_suggestions": [
+            f"Contact certified e-waste recycler specializing in {category.lower()}",
+            "Check manufacturer take-back programs",
+            "Donate to local electronics refurbishment centers" if condition == "working" else "Ensure proper dismantling for parts recovery",
+            "Remove all personal data before disposal"
+        ],
+        "market_value": {
+            "estimated_price": estimated_price,
+            "value_factors": ["condition", "brand", "market demand", "material content"]
+        },
+        "handling_tips": [
+            "Remove all personal data and accounts",
+            "Handle with care to prevent damage",
+            "Keep original packaging if available",
+            "Document serial numbers for warranty claims"
+        ]
+    }
 
 # API Routes
 @api_router.get("/")
