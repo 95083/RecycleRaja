@@ -1,0 +1,27 @@
+.clock {
+    font-family: 'Digital', sans-serif;
+    font-size: 2em;
+    color: #00ff00;
+    text-align: center;
+    background-color: black;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+}
+
+.clock.active {
+    animation: glow 1s infinite alternate;
+}
+
+@keyframes glow {
+    0% {
+        text-shadow: 0 0 5px #00ff00,
+                     0 0 10px #00ff00,
+                     0 0 15px #00ff00;
+    }
+    100% {
+        text-shadow: 0 0 10px #00ff00,
+                     0 0 20px #00ff00,
+                     0 0 30px #00ff00;
+    }
+}
