@@ -10,19 +10,22 @@ from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime
 import base64
-from openai import OpenAI
+import openai
 import json
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-mongo_client = AsyncIOMotorClient(mongo_url)
-db = mongo_client[os.environ['DB_NAME']]
+mongo_url = os.environ.get('MONGO_URL', '')
+mongo_client = AsyncIOMotorClient(mongo_url) if mongo_url else None
+if mongo_client:
+    db = mongo_client[os.environ.get('DB_NAME', 'test_database')]
+else:
+    db = None
 
-# OpenAI setup
-openai_client = OpenAI(api_key=os.environ['OPENAI_API_KEY'])
+# OpenAI setup (optional; will use fallback if not configured)
+openai.api_key = os.environ.get('OPENAI_API_KEY', '')
 
 # Create the main app without a prefix
 app = FastAPI()
@@ -159,7 +162,7 @@ async def get_ai_insights(category: str, description: str, condition: str, weigh
         }}
         """
         
-        response = openai_client.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": "You are an expert in e-waste management and environmental sustainability. Provide detailed, accurate insights about electronic waste disposal and recycling."},

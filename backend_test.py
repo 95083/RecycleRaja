@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Dict, Any
 
 # Backend URL from frontend .env
-BACKEND_URL = "https://21a0b680-e972-4e7f-8153-7203cf9d753a.preview.emergentagent.com/api"
+BACKEND_URL = "http://localhost:8000/api"
 
 class RecycleRajaAPITester:
     def __init__(self):
